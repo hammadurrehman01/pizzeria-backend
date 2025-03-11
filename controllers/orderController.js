@@ -1,4 +1,4 @@
-import { sendUpdatedOrders } from "../index.js";
+import { sendUpdatedOrders } from "../app.js";
 import Order from "../models/OrderModel.js";
 
 // ************* HAMMAD UR REHMAN ************* //

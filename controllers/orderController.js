@@ -1,4 +1,10 @@
+import { sendUpdatedOrders } from "../index.js";
 import Order from "../models/OrderModel.js";
+
+// ************* HAMMAD UR REHMAN ************* //
+// this is a method of socket io for fetch real time updated
+
+
 
 // Create a new order
 export const createOrder = async (req, res) => {
@@ -30,6 +36,10 @@ export const createOrder = async (req, res) => {
     });
 
     const savedOrder = await newOrder.save();
+   const orderSent = await sendUpdatedOrders();
+   if(orderSent) {
+    console.log("Order real time pe gaya!")
+   }
     res.status(201).json(savedOrder);
   } catch (error) {
     res.status(500).json({ message: "Error creating order", error });

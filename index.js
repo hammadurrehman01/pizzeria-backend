@@ -11,6 +11,7 @@ import orderRoutes from "./routes/orderRoutes.js";
 import errorMiddleware from "./middleware/errorMiddleware.js";
 import { Server } from "socket.io";
 import Order from "./models/OrderModel.js";
+import axios from "axios";
 
 connectDB();
 // middleware
@@ -35,7 +36,10 @@ const io = new Server(server, {
 
 export const sendUpdatedOrders = async () => {
   try {
-    const orders = await Order.find().populate("items.menuItem", "name price category");
+    const orders = await Order.find().populate(
+      "items.menuItem",
+      "name price category"
+    );
     io.emit("latestOrders", orders);
   } catch (error) {
     console.error("Error fetching orders:", error);
@@ -54,6 +58,7 @@ app.get("/", (req, res) => {
 app.use("/api/menu", menuRoutes);
 app.use("/api/orders", orderRoutes);
 // app.use("/api/payments", paymentRoutes);
+
 
 const PORT = process.env.PORT || 5001;
 server.listen(PORT, () => console.log(`Server running on port ${PORT}`));

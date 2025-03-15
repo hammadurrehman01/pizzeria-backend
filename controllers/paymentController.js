@@ -1,2 +1,8 @@
-// import stripe from'stripe
-//     ::contentReference[oaicite:0]{index=0}
+const payForOrder = async (req, res) => {
+  try {
+    const url = await createOrderPaypal();
+    res.redirect(url);
+  } catch (error) {
+    console.log("Error: ", error.message);
+  }
+};

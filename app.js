@@ -11,6 +11,8 @@ import orderRoutes from "./routes/orderRoutes.js";
 import errorMiddleware from "./middleware/errorMiddleware.js";
 import { Server } from "socket.io";
 import Order from "./models/OrderModel.js";
+import axios from "axios";
+
 
 connectDB();
 // middleware
@@ -32,6 +34,33 @@ const io = new Server(server, {
     origin: "*",
   },
 });
+
+
+
+const generateAccessToken = async () => {
+   try {
+    console.log(process.env.PAYPAL_CLIENT_ID) 
+    console.log(process.env.PAYPAL_SECRET) 
+     const response = await axios({
+         url: `${process.env.PAYPAL_BASE_URL}/v1/oauth2/token`,
+         method: "post",
+         data: "grant_type=client_credentials",
+         auth: {
+             username: process.env.PAYPAL_CLIENT_ID,
+             password: process.env.PAYPAL_SECRET,
+         }
+     })
+    console.log(response.data);
+
+   } catch (error) {
+    console.error("Error:", error.response?.data || error.message);
+   }
+
+}
+
+
+generateAccessToken()
+
 
 export const sendUpdatedOrders = async () => {
   try {

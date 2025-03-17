@@ -1,22 +1,5 @@
 import axios from "axios";
 
-const generateAccessToken = async () => {
-  try {
-    const response = await axios({
-      url: `${process.env.PAYPAL_BASE_URL}/v1/oauth2/token`,
-      method: "POST",
-      data: "grant_type=client_credentials",
-      auth: {
-        username: process.env.PAYPAL_CLIENT_ID,
-        password: process.env.PAYPAL_SECRET,
-      },
-    });
-    return response.data.access_token;
-  } catch (error) {
-    console.error("Error:", error.response?.data || error.message);
-  }
-};
-
 export const createOrderPaypal = async () => {
   const token = generateAccessToken();
 
@@ -67,7 +50,7 @@ export const createOrderPaypal = async () => {
 };
 
 export const capturePaypalPayment = async (orderId) => {
-  const accessToken = await generateAccessToken();
+  const token = await generateAccessToken();
 
   const response = await axios({
     url: `${process.env.PAYPAL_BASE_URL}/v2/checkout/orders${orderId}/capture`,
@@ -79,3 +62,6 @@ export const capturePaypalPayment = async (orderId) => {
   });
   return response.data;
 };
+
+
+export default generateAccessToken

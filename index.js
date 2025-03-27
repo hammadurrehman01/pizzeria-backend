@@ -11,29 +11,8 @@ import errorMiddleware from "./middleware/errorMiddleware.js";
 import Order from "./models/OrderModel.js";
 import menuRoutes from "./routes/menuRoutes.js";
 import orderRoutes from "./routes/orderRoutes.js";
+import paymentRoutes from "./routes/paymentRoutes.js";
 import axios from "axios";
-
-// paypal
-const generateAccessToken = async () => {
-  try {
-    const response = await axios({
-      url: `https://api-m.sandbox.paypal.com/v1/oauth2/token`,
-      method: "POST",
-      data: "grant_type=client_credentials",
-      auth: {
-        username: process.env.PAYPAL_CLIENT_ID,
-        password: process.env.PAYPAL_SECRET,
-      },
-    });
-      return response.data.access_token;
-
-  } catch (error) {
-    console.error("Error:", error.response?.data || error.message);
-  }
-};
-
-const token = await generateAccessToken();
-console.log("token", token)
 
 connectDB();
 
@@ -80,7 +59,7 @@ app.get("/", (req, res) => {
 });
 app.use("/api/menu", menuRoutes);
 app.use("/api/orders", orderRoutes);
-// app.use("/api/payments", paymentRoutes);
+app.use("/api/payments", paymentRoutes);
 
 const PORT = process.env.PORT || 5001;
 server.listen(PORT, () => console.log(`Server running on port ${PORT}`));

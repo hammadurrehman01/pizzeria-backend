@@ -1,9 +1,8 @@
-import { Router } from "express";
 import paypal from "paypal-rest-sdk"
 
 const { PAYPAL_MODE, PAYPAL_CLIENT_ID, PAYPAL_SECRET } = process.env
 
-console.log( PAYPAL_MODE, PAYPAL_CLIENT_ID, PAYPAL_SECRET );
+console.log(PAYPAL_MODE, PAYPAL_CLIENT_ID, PAYPAL_SECRET);
 
 
 paypal.configure({
@@ -13,7 +12,9 @@ paypal.configure({
 });
 
 export const payForOrder = async (req, res) => {
-  const { name, phoneNumber, street, city, zipCode, customizations } = req.body;
+  const { name, phoneNumber, street, city, zipCode, customizations, cartItems } = req.body;
+
+  const totalAmount = cartItems.reduce((sum, item) => sum + item.price * item.quantity, 0).toFixed(2);
 
   try {
     const create_payment_json = {
@@ -29,18 +30,16 @@ export const payForOrder = async (req, res) => {
         {
           amount: {
             currency: "USD",
-            total: "12" // No "$" sign
+            total: totalAmount
           },
           item_list: {
-            items: [
-              {
-                name: "Pizza",
-                sku: "001",
-                price: "12", // No "$" sign
-                currency: "USD",
-                quantity: 1
-              }
-            ]
+            items: cartItems.map(item => ({
+              name: item.name,
+              sku: item.id.toString(),
+              price: item.price.toFixed(2),
+              currency: "USD",
+              quantity: item.quantity
+            }))
           },
           description: `Order for ${name}, Phone: ${phoneNumber}, Address: ${street}, ${city}, ${zipCode}. Customizations: ${customizations}`
         }

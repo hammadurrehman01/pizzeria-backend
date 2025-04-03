@@ -4,45 +4,80 @@ import Order from "../models/OrderModel.js";
 // ************* HAMMAD UR REHMAN ************* //
 // this is a method of socket io for fetch real time updated
 
-
-
 // Create a new order
 export const createOrder = async (req, res) => {
   try {
     const {
       items,
-      totalPrice,
       paymentStatus,
       orderStatus,
       deliveryAddress,
       phoneNumber,
       name,
+      customizations,
     } = req.body;
 
+    // Validate items
     if (!items || items.length === 0) {
       return res
         .status(400)
         .json({ message: "At least one item is required." });
     }
 
+    // Fetch menuItem details and calculate total price
+    let totalPriceOfItems = 0;
+    for (const item of items) {
+      if (!item.menuItem || !item.quantity) {
+        return res.status(400).json({
+          message: "Each item must have a menuItem and a quantity.",
+        });
+      }
+
+      // Fetch the menuItem details from the database
+      const menuItem = await Menu.findById(item.menuItem);
+      if (!menuItem) {
+        return res.status(404).json({
+          message: `Menu item with ID ${item.menuItem} not found.`,
+        });
+      }
+
+      // Calculate the total price for this item
+      const price = parseFloat(menuItem.price);
+      const quantity = parseInt(item.quantity);
+
+      if (isNaN(price) || isNaN(quantity)) {
+        throw new Error("Invalid price or quantity for an item.");
+      }
+
+      totalPriceOfItems += price * quantity;
+    }
+
+    // Create new order
     const newOrder = new Order({
       items,
       name,
-      totalPrice,
+      totalPrice: totalPriceOfItems,
       paymentStatus,
       orderStatus,
       deliveryAddress,
       phoneNumber,
+      customizations,
     });
 
+    // Save the order
     const savedOrder = await newOrder.save();
-   const orderSent = await sendUpdatedOrders();
-   if(orderSent) {
-    console.log("Order real time pe gaya!")
-   }
+
+    // Send real-time updates
+    await sendUpdatedOrders();
+    console.log("Order sent in real-time!");
+
+    // Return the saved order
     res.status(201).json(savedOrder);
   } catch (error) {
-    res.status(500).json({ message: "Error creating order", error });
+    console.error("Error creating order:", error);
+    res
+      .status(500)
+      .json({ message: "Error creating order", error: error.message });
   }
 };
 

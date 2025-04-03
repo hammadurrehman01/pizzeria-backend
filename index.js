@@ -22,11 +22,11 @@ const server = createServer(app);
 
 app.use(express());
 app.use(express.urlencoded({ extended: true }));
-// var corsOptions = {
-//   origin: "http://localhost:5173",
-//   optionsSuccessStatus: 200,
-// };
-app.use(cors());
+const corsOptions = {
+  origin: "http://localhost:5173",
+  optionsSuccessStatus: 200,
+};
+app.use(cors(corsOptions));
 app.use(express.json());
 app.use(errorMiddleware);
 

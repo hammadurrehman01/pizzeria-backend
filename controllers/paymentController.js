@@ -14,7 +14,7 @@ paypal.configure({
 export const payForOrder = async (req, res) => {
   const { name, phoneNumber, street, city, zipCode, customizations, cartItems } = req.body;
 
-  const totalAmount = cartItems.reduce((sum, item) => sum + item.price * item.quantity, 0).toFixed(2);
+  const totalAmount = cartItems?.reduce((sum, item) => sum + item.price * item.quantity, 0).toFixed(2);
 
   try {
     const create_payment_json = {

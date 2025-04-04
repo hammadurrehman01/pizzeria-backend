@@ -35,8 +35,8 @@ export const payForOrder = async (req, res) => {
           item_list: {
             items: cartItems.map(item => ({
               name: item.name,
-              sku: item.id.toString(),
-              price: item.price.toFixed(2),
+              sku: item.id?.toString(),
+              price: item.price?.toFixed(2),
               currency: "USD",
               quantity: item.quantity
             }))

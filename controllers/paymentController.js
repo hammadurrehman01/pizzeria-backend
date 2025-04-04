@@ -61,7 +61,7 @@ export const payForOrder = async (req, res) => {
 
   } catch (error) {
     console.error("Unexpected Error:", error);
-    return res.status(500).json({ message: "Something went wrong" });
+    return res.status(500).json({ message: error.message });
   }
 };
 

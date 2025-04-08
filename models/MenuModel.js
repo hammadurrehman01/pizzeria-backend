@@ -19,10 +19,10 @@ const menuSchema = new mongoose.Schema(
     category: {
       type: String,
       enum: [
-        "Pizze rosse",
-        "Pizze bianche",
+        "pizze rosse",
+        "pizze bianche",
         "fritti",
-        "Dolci",
+        "dolci",
         "bibite",
         "birre",
       ],

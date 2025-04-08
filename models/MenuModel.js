@@ -26,6 +26,7 @@ const menuSchema = new mongoose.Schema(
         "bibite",
         "birre",
       ],
+      default: "Pizze rosse",
       required: [true, "Category is required"],
     },
     image: { type: String },

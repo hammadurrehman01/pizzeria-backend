@@ -28,7 +28,7 @@ const allowedOrigins = [
   "http://localhost:5174",
   "https://azzipizza-customer.vercel.app",
   "https://azzi-pizza-admin-panel.vercel.app",
-  "https://admin.aruba.it",
+  "https://www.azzipizza.it/",
 ];
 
 const corsOptions = {

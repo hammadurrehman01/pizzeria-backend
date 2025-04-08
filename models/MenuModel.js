@@ -18,7 +18,15 @@ const menuSchema = new mongoose.Schema(
     },
     category: {
       type: String,
-      enum: ["pizza", "burger", "pasta", "drinks", "desserts"],
+      enum: [
+        "pizze rosse",
+        "pizze bianche",
+        "fritti",
+        "dolci",
+        "bibite",
+        "birre",
+      ],
+      default: "Pizze rosse",
       required: [true, "Category is required"],
     },
     image: { type: String },

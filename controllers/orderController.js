@@ -2,9 +2,6 @@ import { sendUpdatedOrders } from "../index.js";
 import Menu from "../models/MenuModel.js";
 import Order from "../models/OrderModel.js";
 
-// ************* HAMMAD UR REHMAN ************* //
-// this is a method of socket io for fetch real time updated
-
 // Create a new order
 export const createOrder = async (req, res) => {
   try {
@@ -15,64 +12,90 @@ export const createOrder = async (req, res) => {
       deliveryAddress,
       phoneNumber,
       name,
-      customizations,
     } = req.body;
 
-    // Validate items
     if (!items || items.length === 0) {
       return res
         .status(400)
         .json({ message: "At least one item is required." });
     }
 
-    // Fetch menuItem details and calculate total price
     let totalPriceOfItems = 0;
+    const orderItems = [];
+
     for (const item of items) {
-      if (!item.menuItem || !item.quantity) {
+      const {
+        menuItem: menuItemId,
+        quantity,
+        selectedIngredients = [],
+        customizations,
+      } = item;
+
+      if (!menuItemId || !quantity) {
         return res.status(400).json({
-          message: "Each item must have a menuItem and a quantity.",
+          message: "Each item must have a menuItem and quantity.",
         });
       }
 
-      // Fetch the menuItem details from the database
-      const menuItem = await Menu.findById(item.menuItem);
+      const menuItem = await Menu.findById(menuItemId);
       if (!menuItem) {
         return res.status(404).json({
-          message: `Menu item with ID ${item.menuItem} not found.`,
+          message: `Menu item with ID ${menuItemId} not found.`,
         });
       }
 
-      // Calculate the total price for this item
-      const price = parseFloat(menuItem.price);
-      const quantity = parseInt(item.quantity);
+      // Filter selected ingredients that exist in the menu item
+      const matchedIngredients = menuItem.ingredients
+        .filter((ing) => selectedIngredients.includes(ing.name))
+        .map((ing) => ({
+          name: ing.name,
+          price: ing.price,
+        }));
 
-      if (isNaN(price) || isNaN(quantity)) {
-        throw new Error("Invalid price or quantity for an item.");
-      }
+      // Calculate price
+      const basePrice = parseFloat(menuItem.price);
+      console.log(basePrice);
+      const ingredientsPrice = matchedIngredients.reduce(
+        (sum, ing) => sum + (ing.price || 0),
+        0
+      );
+      console.log(ingredientsPrice);
+      const itemTotalPrice =
+        (basePrice + ingredientsPrice) * parseInt(quantity);
 
-      totalPriceOfItems += price * quantity;
+      totalPriceOfItems += itemTotalPrice;
+      console.log(totalPriceOfItems);
+
+      // Build final item to push in order
+      orderItems.push({
+        menuItem: menuItemId,
+        quantity,
+        ingredients: matchedIngredients,
+        customizations: customizations || "",
+      });
     }
 
-    // Create new order
+    if (!deliveryAddress || !deliveryAddress.street || !deliveryAddress.city) {
+      return res.status(400).json({
+        message: "Delivery address with street and city is required.",
+      });
+    }
+
     const newOrder = new Order({
-      items,
+      items: orderItems,
       name,
       totalPrice: totalPriceOfItems,
       paymentStatus,
       orderStatus,
       deliveryAddress,
       phoneNumber,
-      customizations,
     });
 
-    // Save the order
     const savedOrder = await newOrder.save();
 
-    // Send real-time updates
-    await sendUpdatedOrders();
+    await sendUpdatedOrders(); // Socket.IO emit for real-time updates
     console.log("Order sent in real-time!");
 
-    // Return the saved order
     res.status(201).json(savedOrder);
   } catch (error) {
     console.error("Error creating order:", error);
@@ -110,11 +133,10 @@ export const getOrderById = async (req, res) => {
   }
 };
 
-// Update order
+// Update order status
 export const updateOrderStatus = async (req, res) => {
   try {
     const { orderStatus, eta } = req.body;
-    const validStatuses = ["Preparing", "Out for Delivery", "Delivered"];
 
     // Prepare the update object (only update `eta` if it's provided)
     const updateData = { orderStatus };
@@ -132,6 +154,9 @@ export const updateOrderStatus = async (req, res) => {
       return res.status(404).json({ message: "Order not found" });
     }
 
+    await sendUpdatedOrders(); // Socket.IO emit for real-time updates
+    console.log("Order status updated in real-time!");
+
     res.status(200).json({
       message: "Order updated successfully",
       updatedOrder,
@@ -148,6 +173,8 @@ export const deleteOrder = async (req, res) => {
     if (!deletedOrder) {
       return res.status(404).json({ message: "Order not found" });
     }
+    await sendUpdatedOrders(); // Socket.IO emit for real-time updates
+    console.log("Order deleted in real-time!");
     res.status(200).json({ message: "Order deleted successfully" });
   } catch (error) {
     res.status(500).json({ message: "Error deleting order", error });

@@ -9,7 +9,24 @@ const orderSchema = new mongoose.Schema(
           ref: "Menu",
           required: [true, "Item is required"],
         },
-        quantity: { type: Number, required: true, default: 1 },
+        ingredients: [
+          {
+            _id: false,
+            name: {
+              type: String,
+            },
+            price: {
+              type: Number,
+              default: 0,
+            },
+          },
+        ],
+        quantity: {
+          type: Number,
+          required: true,
+          default: 1,
+          min: [1, "Quantity must be at least 1"],
+        },
         customizations: String,
       },
     ],

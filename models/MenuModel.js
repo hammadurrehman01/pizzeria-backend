@@ -1,5 +1,10 @@
 import mongoose from "mongoose";
 
+const ingredientSchema = new mongoose.Schema({
+  name: { type: String, required: true },
+  price: { type: Number, default: 0 },
+});
+
 const menuSchema = new mongoose.Schema(
   {
     name: {
@@ -14,7 +19,7 @@ const menuSchema = new mongoose.Schema(
     price: {
       type: Number,
       required: [true, "Price is required"],
-      min: [0, "Price cannot be negative"],
+      min: [0.01, "Price must be greater than 0"],
     },
     category: {
       type: String,
@@ -26,12 +31,14 @@ const menuSchema = new mongoose.Schema(
         "bibite",
         "birre",
       ],
-      default: "Pizze rosse",
+      default: "pizze rosse",
       required: [true, "Category is required"],
     },
-    image: { type: String },
+    image: {
+      type: String,
+    },
     ingredients: {
-      type: [String],
+      type: [ingredientSchema],
       default: [],
     },
     available: {
@@ -42,17 +49,11 @@ const menuSchema = new mongoose.Schema(
   { timestamps: true }
 );
 
-// Pre-save hook
+// Convert name to lowercase and trim it before saving
 menuSchema.pre("save", function (next) {
-  this.name = this.name.trim().toLowerCase();
+  if (this.name) this.name = this.name.trim().toLowerCase();
   next();
 });
 
-// Custom validation
-menuSchema.path("price").validate(function (value) {
-  return value > 0;
-}, "Price must be greater than 0");
-
 const Menu = mongoose.model("Menu", menuSchema);
-
 export default Menu;

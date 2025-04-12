@@ -10,8 +10,6 @@ const {
   PAYPAL_CANCEL_URL,
 } = process.env;
 
-console.log(PAYPAL_MODE, PAYPAL_CLIENT_ID, PAYPAL_SECRET);
-
 // Configuring PayPal SDK
 paypal.configure({
   mode: PAYPAL_MODE,
@@ -59,8 +57,8 @@ export const payForOrder = async (req, res) => {
       payment_method: "paypal",
     },
     redirect_urls: {
-      return_url: PAYPAL_RETURN_URL || "http://localhost:5000/api/success",
-      cancel_url: PAYPAL_CANCEL_URL || "http://localhost:5000/api/cancel",
+      return_url: `${CLIENT_BASE_URL}/api/success`,
+      cancel_url: `${CLIENT_BASE_URL}/api/cancel`,
     },
     transactions: [
       {
@@ -165,7 +163,7 @@ export const handleSuccess = async (req, res) => {
           console.log("Payment executed successfully:", payment);
 
           // Redirect to the frontend success page
-          return res.redirect("http://localhost:3000/success");
+          return res.redirect(`${CLIENT_BASE_URL}/api/success`);
         }
       }
     );
@@ -179,7 +177,7 @@ export const handleSuccess = async (req, res) => {
 export const handleFailure = async (req, res) => {
   try {
     console.log("Payment failed, redirecting to failure page");
-    return res.redirect("http://localhost:3000/failure");
+    return res.redirect(`${CLIENT_BASE_URL}/api/cancel`);
   } catch (error) {
     console.error("Error during payment failure handling:", error);
     return res

@@ -86,87 +86,83 @@ export const createMenuItem = async (req, res) => {
       .json({ message: "Error creating menu item", error: error.message });
   }
 };
-
 export const updateMenuItem = async (req, res) => {
-  // Validate incoming data
-  await body("name")
-    .optional()
-    .isString()
-    .withMessage("Name must be a string")
-    .run(req);
-  await body("description")
-    .optional()
-    .isString()
-    .withMessage("Description must be a string")
-    .run(req);
-  await body("price")
-    .optional()
-    .isNumeric()
-    .withMessage("Price must be a number")
-    .run(req);
-  await body("category")
-    .optional()
-    .isString()
-    .withMessage("Category must be a string")
-    .run(req);
-  await body("ingredients")
-    .optional()
-    .isJSON()
-    .withMessage("Ingredients must be a valid JSON")
-    .run(req);
+  const { id } = req.params;
+  console.log("Update request received:", {
+    body: req.body,
+    file: req.file,
+    params: req.params,
+  });
 
-  const errors = validationResult(req);
-  if (!errors.isEmpty()) {
-    return res.status(400).json({ errors: errors.array() });
+  // Validate ID
+  if (!mongoose.Types.ObjectId.isValid(id)) {
+    return res.status(400).json({ message: "Invalid menu item ID format" });
   }
 
-  const { name, description, price, category, ingredients, available } =
-    req.body;
-
   try {
-    const menuItem = await Menu.findById(req.params.id);
+    // Find existing menu item
+    const menuItem = await Menu.findById(id);
     if (!menuItem) {
       return res.status(404).json({ message: "Menu item not found" });
     }
 
-    // Parse ingredients if provided
-    let parsedIngredients = menuItem.ingredients; // default to existing
-    if (ingredients) {
+    // Handle image upload if new image was provided
+    let imageUrl = menuItem.image;
+    if (req.file) {
+      // Upload new image to Cloudinary
+      const uploadedImage = await cloudinary.uploader.upload(req.file.path);
+      imageUrl = uploadedImage.secure_url;
+
+      // Delete old image from Cloudinary
+      if (menuItem.image) {
+        const publicId = menuItem.image.split("/").pop().split(".")[0];
+        await cloudinary.uploader.destroy(publicId);
+      }
+    }
+
+    // Parse ingredients (handle both FormData and JSON)
+    let ingredients = menuItem.ingredients;
+    if (req.body.ingredients) {
       try {
-        parsedIngredients = JSON.parse(ingredients);
+        ingredients =
+          typeof req.body.ingredients === "string"
+            ? JSON.parse(req.body.ingredients)
+            : req.body.ingredients;
       } catch (err) {
         return res.status(400).json({ message: "Invalid ingredients format" });
       }
     }
 
-    // Use findByIdAndUpdate for simplicity
-    const updatedMenuItem = await Menu.findByIdAndUpdate(
-      req.params.id,
-      {
-        name: name || menuItem.name,
-        description: description || menuItem.description,
-        price: price || menuItem.price,
-        category: category || menuItem.category,
-        ingredients: parsedIngredients,
-        available: available || menuItem.available,
-      },
-      { new: true } // Return the updated document
-    );
+    // Prepare update data
+    const updateData = {
+      name: req.body.name || menuItem.name,
+      description: req.body.description || menuItem.description,
+      price: req.body.price || menuItem.price,
+      category: req.body.category || menuItem.category,
+      ingredients: ingredients,
+      available:
+        req.body.available !== undefined
+          ? req.body.available
+          : menuItem.available,
+      image: imageUrl,
+    };
 
-    // If not found after update
+    // Update the menu item
+    const updatedMenuItem = await Menu.findByIdAndUpdate(id, updateData, {
+      new: true,
+    });
+
+    console.log(updatedMenuItem);
     if (!updatedMenuItem) {
-      return res
-        .status(404)
-        .json({ message: "Menu item not found after update" });
+      return res.status(404).json({ message: "Menu item not found" });
     }
-
-    // Send success response
     res.status(200).json(updatedMenuItem);
   } catch (error) {
     console.error("Error updating menu item:", error);
-    res
-      .status(500)
-      .json({ message: "Error updating menu item", error: error.message });
+    res.status(500).json({
+      message: "Error updating menu item",
+      error: error.message,
+    });
   }
 };
 

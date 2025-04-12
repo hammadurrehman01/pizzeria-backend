@@ -12,12 +12,12 @@ const {
 
 // Configuring PayPal SDK
 paypal.configure({
-  mode: PAYPAL_MODE,
-  client_id: PAYPAL_CLIENT_ID,
-  client_secret: PAYPAL_SECRET,
+  mode: process.env.PAYPAL_MODE,
+  client_id: process.env.PAYPAL_CLIENT_ID,
+  client_secret: process.env.PAYPAL_CLIENT_SECRET,
 });
 
-// Create a payment
+// Create PayPal payment
 export const payForOrder = async (req, res) => {
   const {
     name,
@@ -93,60 +93,109 @@ export const payForOrder = async (req, res) => {
 
   // Create the payment with PayPal
   try {
-    paypal.payment.create(create_payment_json, (error, payment) => {
+    const { orderId, amount } = req.body;
+
+    // Validate input
+    if (!orderId || !amount) {
+      return res.status(400).json({ message: "Missing order ID or amount" });
+    }
+
+    // Get order details
+    const order = await Order.findById(orderId).populate(
+      "items.menuItem items.selectedIngredients"
+    );
+
+    if (!order) {
+      return res.status(404).json({ message: "Order not found" });
+    }
+
+    // Create PayPal payment payload
+    const createPaymentJson = {
+      intent: "sale",
+      payer: { payment_method: "paypal" },
+      redirect_urls: {
+        return_url:
+          process.env.PAYPAL_RETURN_URL ||
+          "http://localhost:5000/api/payments/success",
+        cancel_url:
+          process.env.PAYPAL_CANCEL_URL ||
+          "http://localhost:5000/api/payments/cancel",
+      },
+      transactions: [
+        {
+          amount: {
+            currency: "EUR",
+            total: (amount / 100).toFixed(2), // Convert cents to euros
+          },
+          item_list: {
+            items: [
+              ...order.items.map((item) => ({
+                name: item.menuItem.name,
+                sku: item.menuItem._id.toString(),
+                price: (item.menuItem.price / 100).toFixed(2),
+                currency: "EUR",
+                quantity: item.quantity,
+              })),
+              ...order.items.flatMap((item) =>
+                item.selectedIngredients.map((ingredient) => ({
+                  name: `Extra ${ingredient.name}`,
+                  sku: ingredient._id.toString(),
+                  price: (ingredient.price / 100).toFixed(2),
+                  currency: "EUR",
+                  quantity: item.quantity,
+                }))
+              ),
+            ],
+          },
+          description: `Order #${order._id}`,
+        },
+      ],
+    };
+
+    // Create PayPal payment
+    paypal.payment.create(createPaymentJson, (error, payment) => {
       if (error) {
         console.error("PayPal Error:", error);
-        return res.status(400).json({ error: error.response });
-      } else {
-        // Get the approval URL from PayPal payment response
-        const approval_url = payment.links.find(
-          (link) => link.rel === "approval_url"
-        )?.href;
-        if (approval_url) {
-          return res.send({ approval_url });
-        }
-        return res.status(404).json({ message: "No approval URL found" });
+        return res.status(400).json({
+          message: error.response.details || "Payment creation failed",
+        });
       }
+
+      const approvalUrl = payment.links.find(
+        (link) => link.rel === "approval_url"
+      )?.href;
+
+      if (!approvalUrl) {
+        return res.status(500).json({ message: "No approval URL found" });
+      }
+
+      res.json({ approvalUrl });
     });
   } catch (error) {
-    console.error("Unexpected Error:", error);
-    return res.status(500).json({ message: error.message });
+    console.error("Payment Error:", error);
+    res.status(500).json({ message: "Internal server error" });
   }
 };
 
-// Handle the success of the payment
+// Handle successful payment
 export const handleSuccess = async (req, res) => {
-  const { payerId, paymentId } = req.query;
-
-  // Validate payerId and paymentId
-  if (!payerId || !paymentId) {
-    return res.status(400).json({ message: "Missing payerId or paymentId." });
-  }
-
-  // Prepare the execute payment request
-  const execute_payment_json = {
-    payer_id: payerId,
-    transactions: [
-      {
-        amount: {
-          currency: "EUR",
-          total: req.body.totalAmount || "0.00",
-        },
-      },
-    ],
-  };
-
-  // Execute the payment
   try {
+    const { paymentId, PayerID } = req.query;
+
+    if (!paymentId || !PayerID) {
+      return res.status(400).json({ message: "Missing payment details" });
+    }
+
+    // Execute payment
     paypal.payment.execute(
       paymentId,
-      execute_payment_json,
-      (error, payment) => {
+      { payer_id: PayerID },
+      async (error, payment) => {
         if (error) {
           console.error("Error executing payment:", error);
           return res.status(400).json({ error: error.response });
         } else {
-          Order.updateOne(
+          await Order.updateOne(
             { _id: req.body.orderId },
             {
               paymentStatus: "Completed",
@@ -163,25 +212,18 @@ export const handleSuccess = async (req, res) => {
           console.log("Payment executed successfully:", payment);
 
           // Redirect to the frontend success page
-          return res.redirect(`${CLIENT_BASE_URL}/api/success`);
+          console.error("Payment Execution Error:", error);
+          res.redirect(`${process.env.CLIENT_URL}/order-success`);
         }
       }
     );
   } catch (error) {
-    console.error("Unexpected Error during payment execution:", error);
-    return res.status(500).json({ message: error.message });
+    console.error("Payment Success Error:", error);
+    res.redirect(`${process.env.CLIENT_URL}/payment-error`);
   }
 };
 
-// Handle the failure of the payment
-export const handleFailure = async (req, res) => {
-  try {
-    console.log("Payment failed, redirecting to failure page");
-    return res.redirect(`${CLIENT_BASE_URL}/api/cancel`);
-  } catch (error) {
-    console.error("Error during payment failure handling:", error);
-    return res
-      .status(500)
-      .json({ message: "Error processing payment failure" });
-  }
+// Handle cancelled payment
+export const handleCancel = (req, res) => {
+  res.redirect(`${process.env.CLIENT_URL}/payment-cancelled`);
 };

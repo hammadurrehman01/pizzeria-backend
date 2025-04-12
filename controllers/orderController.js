@@ -5,16 +5,10 @@ import Order from "../models/OrderModel.js";
 // Create a new order
 export const createOrder = async (req, res) => {
   try {
-    const {
-      items,
-      paymentStatus,
-      orderStatus,
-      deliveryAddress,
-      phoneNumber,
-      name,
-    } = req.body;
+    const { items, deliveryAddress, phoneNumber, name } = req.body;
 
-    if (!items || items.length === 0) {
+    // Validate items
+    if (!items?.length) {
       return res
         .status(400)
         .json({ message: "At least one item is required." });
@@ -24,84 +18,88 @@ export const createOrder = async (req, res) => {
     const orderItems = [];
 
     for (const item of items) {
-      const {
-        menuItem: menuItemId,
-        quantity,
-        selectedIngredients = [],
-        customizations,
-      } = item;
+      const { menuItem: menuItemId, quantity, selectedIngredients = [] } = item;
 
+      // Validate item
       if (!menuItemId || !quantity) {
         return res.status(400).json({
           message: "Each item must have a menuItem and quantity.",
         });
       }
 
-      const menuItem = await Menu.findById(menuItemId);
+      // Get menu item with populated ingredients
+      const menuItem = await Menu.findById(menuItemId).populate("ingredients");
       if (!menuItem) {
         return res.status(404).json({
           message: `Menu item with ID ${menuItemId} not found.`,
         });
       }
 
-      // Filter selected ingredients that exist in the menu item
+      // Match ingredients by string ID comparison
       const matchedIngredients = menuItem.ingredients
-        .filter((ing) => selectedIngredients.includes(ing.name))
+        .filter((ing) => selectedIngredients.includes(ing._id.toString()))
         .map((ing) => ({
           name: ing.name,
           price: ing.price,
+          _id: ing._id,
         }));
 
-      // Calculate price
-      const basePrice = parseFloat(menuItem.price);
-      console.log(basePrice);
+      // Validate all selected ingredients exist
+      if (matchedIngredients.length !== selectedIngredients.length) {
+        const invalidIds = selectedIngredients.filter(
+          (id) => !menuItem.ingredients.some((ing) => ing._id.toString() === id)
+        );
+        return res.status(400).json({
+          message: "Invalid ingredients selected",
+          invalidIngredients: invalidIds,
+        });
+      }
+
+      // Calculate prices
+      const basePrice = menuItem.price;
       const ingredientsPrice = matchedIngredients.reduce(
-        (sum, ing) => sum + (ing.price || 0),
+        (sum, ing) => sum + ing.price,
         0
       );
-      console.log(ingredientsPrice);
-      const itemTotalPrice =
-        (basePrice + ingredientsPrice) * parseInt(quantity);
+      const itemTotal = (basePrice + ingredientsPrice) * quantity;
 
-      totalPriceOfItems += itemTotalPrice;
-      console.log(totalPriceOfItems);
+      totalPriceOfItems += itemTotal;
 
-      // Build final item to push in order
+      // Build order item
       orderItems.push({
         menuItem: menuItemId,
         quantity,
-        ingredients: matchedIngredients,
-        customizations: customizations || "",
+        selectedIngredients: matchedIngredients,
+        customizations: item.customizations || "",
       });
     }
 
-    if (!deliveryAddress || !deliveryAddress.street || !deliveryAddress.city) {
+    // Validate delivery address
+    if (!deliveryAddress?.street || !deliveryAddress?.city) {
       return res.status(400).json({
-        message: "Delivery address with street and city is required.",
+        message: "Valid street and city in delivery address are required.",
       });
     }
 
+    // Create and save order
     const newOrder = new Order({
       items: orderItems,
       name,
       totalPrice: totalPriceOfItems,
-      paymentStatus,
-      orderStatus,
       deliveryAddress,
       phoneNumber,
     });
 
     const savedOrder = await newOrder.save();
-
-    await sendUpdatedOrders(); // Socket.IO emit for real-time updates
-    console.log("Order sent in real-time!");
+    await sendUpdatedOrders();
 
     res.status(201).json(savedOrder);
   } catch (error) {
-    console.error("Error creating order:", error);
-    res
-      .status(500)
-      .json({ message: "Error creating order", error: error.message });
+    console.error("Order creation error:", error);
+    res.status(500).json({
+      message: "Error creating order",
+      error: error.message,
+    });
   }
 };
 

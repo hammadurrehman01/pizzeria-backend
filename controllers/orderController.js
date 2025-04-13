@@ -5,7 +5,7 @@ import Order from "../models/OrderModel.js";
 // Create a new order
 export const createOrder = async (req, res) => {
   try {
-    const { items, deliveryAddress, phoneNumber, name } = req.body;
+    const { items, deliveryAddress, phoneNumber, name, total } = req.body;
 
     // Validate items
     if (!items?.length) {
@@ -54,17 +54,6 @@ export const createOrder = async (req, res) => {
           invalidIngredients: invalidIds,
         });
       }
-
-      // Calculate prices
-      const basePrice = menuItem.price;
-      const ingredientsPrice = matchedIngredients.reduce(
-        (sum, ing) => sum + ing.price,
-        0
-      );
-      const itemTotal = (basePrice + ingredientsPrice) * quantity;
-
-      totalPriceOfItems += itemTotal;
-
       // Build order item
       orderItems.push({
         menuItem: menuItemId,
@@ -85,7 +74,7 @@ export const createOrder = async (req, res) => {
     const newOrder = new Order({
       items: orderItems,
       name,
-      totalPrice: totalPriceOfItems,
+      totalPrice: total,
       deliveryAddress,
       phoneNumber,
     });

@@ -2,15 +2,6 @@ import paypal from "paypal-rest-sdk";
 import Order from "../models/OrderModel.js";
 
 // Configuring PayPal SDK
-const {
-  PAYPAL_MODE,
-  PAYPAL_CLIENT_ID,
-  PAYPAL_SECRET,
-  PAYPAL_RETURN_URL,
-  PAYPAL_CANCEL_URL,
-} = process.env;
-
-// Configuring PayPal SDK
 paypal.configure({
   mode: process.env.PAYPAL_MODE,
   client_id: process.env.PAYPAL_CLIENT_ID,
@@ -57,8 +48,8 @@ export const payForOrder = async (req, res) => {
       payment_method: "paypal",
     },
     redirect_urls: {
-      return_url: `${CLIENT_BASE_URL}/api/success`,
-      cancel_url: `${CLIENT_BASE_URL}/api/cancel`,
+      return_url: `${PAYPAL_BASE_URL}/api/success`,
+      cancel_url: `${PAYPAL_BASE_URL}/api/cancel`,
     },
     transactions: [
       {

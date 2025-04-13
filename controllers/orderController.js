@@ -5,7 +5,8 @@ import Order from "../models/OrderModel.js";
 // Create a new order
 export const createOrder = async (req, res) => {
   try {
-    const { items, deliveryAddress, phoneNumber, name, total } = req.body;
+    const { items, deliveryAddress, phoneNumber, name, total, customizations } =
+      req.body;
 
     // Validate items
     if (!items?.length) {
@@ -14,7 +15,6 @@ export const createOrder = async (req, res) => {
         .json({ message: "At least one item is required." });
     }
 
-    let totalPriceOfItems = 0;
     const orderItems = [];
 
     for (const item of items) {
@@ -59,7 +59,7 @@ export const createOrder = async (req, res) => {
         menuItem: menuItemId,
         quantity,
         selectedIngredients: matchedIngredients,
-        customizations: item.customizations || "",
+        customizations: customizations || "",
       });
     }
 

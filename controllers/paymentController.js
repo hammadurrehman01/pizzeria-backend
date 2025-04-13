@@ -13,33 +13,47 @@ export const payForOrder = async (req, res) => {
   const {
     name,
     phoneNumber,
-    street,
-    city,
-    zipCode,
     customizations,
-    cartItems,
-    ingredients,
+    items,
+    deliveryAddress,
+    total,
     currency = "EUR",
   } = req.body;
 
-  // Calculate the total amount from the cart items
-  let totalAmount = cartItems
-    ?.reduce((sum, item) => sum + item.price * item.quantity, 0)
-    .toFixed(2);
+  console.log("req.body ==>", req.body)
 
-  // Add extra costs for ingredients (if any)
-  const extraIngredientsCost =
-    ingredients
-      ?.reduce((sum, ingredient) => sum + ingredient.price, 0)
-      .toFixed(2) || 0;
-  totalAmount = (
-    parseFloat(totalAmount) + parseFloat(extraIngredientsCost)
-  ).toFixed(2);
+  // Calculate the total amount from the cart items
+  // let totalAmount = items
+  //   ?.reduce((sum, item) => sum + item.price * item.quantity, 0)
+  //   .toFixed(2);
+
+  // // Add extra costs for ingredients (if any)
+  // const extraIngredientsCost =
+  //   ingredients
+  //     ?.reduce((sum, ingredient) => sum + ingredient.price, 0)
+  //     .toFixed(2) || 0;
+  // totalAmount = (
+  //   parseFloat(totalAmount) + parseFloat(extraIngredientsCost)
+  // ).toFixed(2);
 
   // Make sure we have a valid total amount
-  if (totalAmount <= 0) {
-    return res.status(400).json({ message: "Invalid order total amount." });
-  }
+  // if (totalAmount <= 0) {
+  //   return res.status(400).json({ message: "Invalid order total amount." });
+  // }
+
+const ingredientList = items?.map((item) => {
+  return item.selectedIngredients
+})
+
+  const ingredientMap = new Map(
+    ingredientList.map((ingredient) => [ingredient._id, ingredient.name])
+  );
+
+  const ingredientNames = items
+    .flatMap((item) => item.selectedIngredients)
+    .map((id) => ingredientMap.get(id))
+    .filter(Boolean)
+    .join(", ");
 
   // Prepare payment request for PayPal
   const create_payment_json = {
@@ -48,36 +62,33 @@ export const payForOrder = async (req, res) => {
       payment_method: "paypal",
     },
     redirect_urls: {
-      return_url: `${PAYPAL_BASE_URL}/api/success`,
-      cancel_url: `${PAYPAL_BASE_URL}/api/cancel`,
+      return_url: `${process.env.PAYPAL_BASE_URL}/api/success`,
+      cancel_url: `${process.env.PAYPAL_BASE_URL}/api/cancel`,
     },
     transactions: [
       {
         amount: {
           currency: currency, // Set to EUR here
-          total: totalAmount,
+          total,
         },
         item_list: {
-          items: [
-            ...cartItems.map((item) => ({
+          items: items.flatMap((item) => [
+            {
               name: item.name,
-              sku: item.id?.toString(),
               price: item.price?.toFixed(2),
-              currency: currency,
+              currency: "EURO",
               quantity: item.quantity,
-            })),
-            ...ingredients?.map((ingredient) => ({
+            },
+            ...item.selectedIngredients?.map((ingredient) => ({
               name: ingredient.name,
-              sku: ingredient.id?.toString(),
               price: ingredient.price?.toFixed(2),
-              currency: currency,
+              currency: "EURO",
               quantity: 1,
-            })),
-          ],
+            })) || [],
+          ]),
         },
-        description: `Order for ${name}, Phone: ${phoneNumber}, Address: ${street}, ${city}, ${zipCode}. Customizations: ${customizations}. Ingredients: ${ingredients
-          ?.map((ingredient) => ingredient.name)
-          .join(", ")}`,
+        description: `Order for ${name}, Phone: ${phoneNumber}, Address: ${deliveryAddress?.street}, ${deliveryAddress?.city}, ${deliveryAddress?.zipCode}. Customizations: ${customizations}. Ingredients: ${ingredientNames}`,
+
       },
     ],
   };

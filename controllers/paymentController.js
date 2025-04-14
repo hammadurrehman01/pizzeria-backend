@@ -10,100 +10,24 @@ paypal.configure({
 
 // Create PayPal payment
 export const payForOrder = async (req, res) => {
-  const {
-    name,
-    phoneNumber,
-    customizations,
-    items,
-    deliveryAddress,
-    total,
-    currency = "EUR",
-  } = req.body;
-
-  console.log("req.body ==>", req.body)
-
-  // Calculate the total amount from the cart items
-  // let totalAmount = items
-  //   ?.reduce((sum, item) => sum + item.price * item.quantity, 0)
-  //   .toFixed(2);
-
-  // // Add extra costs for ingredients (if any)
-  // const extraIngredientsCost =
-  //   ingredients
-  //     ?.reduce((sum, ingredient) => sum + ingredient.price, 0)
-  //     .toFixed(2) || 0;
-  // totalAmount = (
-  //   parseFloat(totalAmount) + parseFloat(extraIngredientsCost)
-  // ).toFixed(2);
-
-  // Make sure we have a valid total amount
-  // if (totalAmount <= 0) {
-  //   return res.status(400).json({ message: "Invalid order total amount." });
-  // }
-
-const ingredientList = items?.map((item) => {
-  return item.selectedIngredients
-})
-
-  const ingredientMap = new Map(
-    ingredientList.map((ingredient) => [ingredient._id, ingredient.name])
-  );
-
-  const ingredientNames = items
-    .flatMap((item) => item.selectedIngredients)
-    .map((id) => ingredientMap.get(id))
-    .filter(Boolean)
-    .join(", ");
-
-  // Prepare payment request for PayPal
-  const create_payment_json = {
-    intent: "sale",
-    payer: {
-      payment_method: "paypal",
-    },
-    redirect_urls: {
-      return_url: `${process.env.PAYPAL_BASE_URL}/api/success`,
-      cancel_url: `${process.env.PAYPAL_BASE_URL}/api/cancel`,
-    },
-    transactions: [
-      {
-        amount: {
-          currency: currency, // Set to EUR here
-          total,
-        },
-        item_list: {
-          items: items.flatMap((item) => [
-            {
-              name: item.name,
-              price: item.price?.toFixed(2),
-              currency: "EURO",
-              quantity: item.quantity,
-            },
-            ...item.selectedIngredients?.map((ingredient) => ({
-              name: ingredient.name,
-              price: ingredient.price?.toFixed(2),
-              currency: "EURO",
-              quantity: 1,
-            })) || [],
-          ]),
-        },
-        description: `Order for ${name}, Phone: ${phoneNumber}, Address: ${deliveryAddress?.street}, ${deliveryAddress?.city}, ${deliveryAddress?.zipCode}. Customizations: ${customizations}. Ingredients: ${ingredientNames}`,
-
-      },
-    ],
-  };
-
-  // Create the payment with PayPal
   try {
-    const { orderId, amount } = req.body;
+    const { items, deliveryAddress, name, phoneNumber, total } = req.body;
 
-    // Validate input
-    if (!orderId || !amount) {
-      return res.status(400).json({ message: "Missing order ID or amount" });
-    }
+    const newOrder = new Order({
+      items,
+      name,
+      phoneNumber,
+      totalPrice: total,
+      deliveryAddress,
+      phoneNumber,
+    });
+
+    const savedOrder = await newOrder.save();
+
+    console.log("savedOrder", savedOrder._id)
 
     // Get order details
-    const order = await Order.findById(orderId).populate(
+    const order = await Order.findById(savedOrder._id).populate(
       "items.menuItem items.selectedIngredients"
     );
 
@@ -127,21 +51,21 @@ const ingredientList = items?.map((item) => {
         {
           amount: {
             currency: "EUR",
-            total: (amount / 100).toFixed(2), // Convert cents to euros
+            total: (total / 100).toFixed(2), // Convert cents to euros
           },
           item_list: {
             items: [
               ...order.items.map((item) => ({
-                name: item.menuItem.name,
-                sku: item.menuItem._id.toString(),
-                price: (item.menuItem.price / 100).toFixed(2),
+                // name: item.menuItem.name,
+                // sku: item.menuItem._id.toString(),
+                // price: (item.menuItem.price / 100).toFixed(2),
                 currency: "EUR",
                 quantity: item.quantity,
               })),
               ...order.items.flatMap((item) =>
                 item.selectedIngredients.map((ingredient) => ({
                   name: `Extra ${ingredient.name}`,
-                  sku: ingredient._id.toString(),
+                  // sku: ingredient._id.toString(),
                   price: (ingredient.price / 100).toFixed(2),
                   currency: "EUR",
                   quantity: item.quantity,
@@ -158,7 +82,7 @@ const ingredientList = items?.map((item) => {
     paypal.payment.create(createPaymentJson, (error, payment) => {
       if (error) {
         console.error("PayPal Error:", error);
-        return res.status(400).json({
+        return res.status(500).json({
           message: error.response.details || "Payment creation failed",
         });
       }

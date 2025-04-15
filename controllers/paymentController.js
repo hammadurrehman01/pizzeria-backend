@@ -5,7 +5,7 @@ import Order from "../models/OrderModel.js";
 paypal.configure({
   mode: process.env.PAYPAL_MODE,
   client_id: process.env.PAYPAL_CLIENT_ID,
-  client_secret: process.env.PAYPAL_CLIENT_SECRET,
+  client_secret: process.env.PAYPAL_SECRET,
 });
 
 // Create PayPal payment
@@ -23,65 +23,43 @@ export const payForOrder = async (req, res) => {
     });
 
     const savedOrder = await newOrder.save();
-
-    console.log("savedOrder", savedOrder._id)
+    console.log("savedOrder =>", savedOrder)
 
     // Get order details
     const order = await Order.findById(savedOrder._id).populate(
       "items.menuItem items.selectedIngredients"
     );
 
-    if (!order) {
-      return res.status(404).json({ message: "Order not found" });
+    const create_payment_json = {
+      "intent": "sale",
+      "payer": {
+        "payment_method": "paypal",
+      },
+      "redirect_urls": {
+        "return_url": "https://azzipizza.it/api/payments/success",
+        "cancel_url": "https://azzipizza.it/api/payments/cancel",
+      },
+      "transactions": [{
+        "item_list": {
+          "items": items.map((item) => ({
+            "name": item.item_name,
+            "price": item.price,
+            "currency": "EUR",
+            "quantity": item.quantity,
+          }))
+        },
+        "amount": {
+          "currency": "EUR",
+          "total": total
+        },
+        "description": "A purchase from Azzi Pizza"
+      }]
     }
 
-    // Create PayPal payment payload
-    const createPaymentJson = {
-      intent: "sale",
-      payer: { payment_method: "paypal" },
-      redirect_urls: {
-        return_url:
-          process.env.PAYPAL_RETURN_URL ||
-          "http://localhost:5000/api/payments/success",
-        cancel_url:
-          process.env.PAYPAL_CANCEL_URL ||
-          "http://localhost:5000/api/payments/cancel",
-      },
-      transactions: [
-        {
-          amount: {
-            currency: "EUR",
-            total: (total / 100).toFixed(2), // Convert cents to euros
-          },
-          item_list: {
-            items: [
-              ...order.items.map((item) => ({
-                // name: item.menuItem.name,
-                // sku: item.menuItem._id.toString(),
-                // price: (item.menuItem.price / 100).toFixed(2),
-                currency: "EUR",
-                quantity: item.quantity,
-              })),
-              ...order.items.flatMap((item) =>
-                item.selectedIngredients.map((ingredient) => ({
-                  name: `Extra ${ingredient.name}`,
-                  // sku: ingredient._id.toString(),
-                  price: (ingredient.price / 100).toFixed(2),
-                  currency: "EUR",
-                  quantity: item.quantity,
-                }))
-              ),
-            ],
-          },
-          description: `Order #${order._id}`,
-        },
-      ],
-    };
-
     // Create PayPal payment
-    paypal.payment.create(createPaymentJson, (error, payment) => {
+    paypal.payment.create(create_payment_json, (error, payment) => {
       if (error) {
-        console.error("PayPal Error:", error);
+        console.error("PayPal Error:", error.response.details);
         return res.status(500).json({
           message: error.response.details || "Payment creation failed",
         });
@@ -95,7 +73,7 @@ export const payForOrder = async (req, res) => {
         return res.status(500).json({ message: "No approval URL found" });
       }
 
-      res.json({ approvalUrl });
+      return res.json({ approvalUrl });
     });
   } catch (error) {
     console.error("Payment Error:", error);
@@ -103,7 +81,6 @@ export const payForOrder = async (req, res) => {
   }
 };
 
-// Handle successful payment
 export const handleSuccess = async (req, res) => {
   try {
     const { paymentId, PayerID } = req.query;
@@ -137,7 +114,6 @@ export const handleSuccess = async (req, res) => {
           );
           console.log("Payment executed successfully:", payment);
 
-          // Redirect to the frontend success page
           console.error("Payment Execution Error:", error);
           res.redirect(`${process.env.CLIENT_URL}/order-success`);
         }

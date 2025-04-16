@@ -7,6 +7,7 @@ export const createOrder = async (req, res) => {
   try {
     const { items, deliveryAddress, phoneNumber, name, total, customizations } =
       req.body;
+    console.log("req.body =>", req.body);
 
     // Validate items
     if (!items?.length) {
@@ -35,25 +36,26 @@ export const createOrder = async (req, res) => {
         });
       }
 
-      // Match ingredients by string ID comparison
-      const matchedIngredients = menuItem.ingredients
-        .filter((ing) => selectedIngredients.includes(ing._id.toString()))
-        .map((ing) => ({
-          name: ing.name,
-          price: ing.price,
-          _id: ing._id,
-        }));
-
-      // Validate all selected ingredients exist
-      if (matchedIngredients.length !== selectedIngredients.length) {
-        const invalidIds = selectedIngredients.filter(
-          (id) => !menuItem.ingredients.some((ing) => ing._id.toString() === id)
-        );
+      if (!Array.isArray(selectedIngredients)) {
         return res.status(400).json({
-          message: "Invalid ingredients selected",
-          invalidIngredients: invalidIds,
+          message: "selectedIngredients must be an array of objects.",
         });
       }
+
+      // Match ingredients by string ID comparison
+      const matchedIngredients = selectedIngredients.map((ing) => {
+        if (!ing._id || !ing.name || typeof ing.price !== "number") {
+          throw new Error(
+            "Each selected ingredient must include _id, name, and price."
+          );
+        }
+        return {
+          _id: ing._id,
+          name: ing.name,
+          price: ing.price,
+        };
+      });
+
       // Build order item
       orderItems.push({
         menuItem: menuItemId,

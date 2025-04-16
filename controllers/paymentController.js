@@ -23,7 +23,7 @@ export const payForOrder = async (req, res) => {
     });
 
     const savedOrder = await newOrder.save();
-    console.log("savedOrder =>", savedOrder)
+    console.log("savedOrder =>", savedOrder);
 
     // Get order details
     const order = await Order.findById(savedOrder._id).populate(
@@ -31,30 +31,32 @@ export const payForOrder = async (req, res) => {
     );
 
     const create_payment_json = {
-      "intent": "sale",
-      "payer": {
-        "payment_method": "paypal",
+      intent: "sale",
+      payer: {
+        payment_method: "paypal",
       },
-      "redirect_urls": {
-        "return_url": "https://azzipizza.it/api/payments/success",
-        "cancel_url": "https://azzipizza.it/api/payments/cancel",
+      redirect_urls: {
+        return_url: "https://azzipizza.it/order-success",
+        cancel_url: "https://azzipizza.it/payment-cancelled",
       },
-      "transactions": [{
-        "item_list": {
-          "items": items.map((item) => ({
-            "name": item.item_name,
-            "price": item.price,
-            "currency": "EUR",
-            "quantity": item.quantity,
-          }))
+      transactions: [
+        {
+          item_list: {
+            items: items.map((item) => ({
+              name: item.item_name,
+              price: item.price,
+              currency: "EUR",
+              quantity: item.quantity,
+            })),
+          },
+          amount: {
+            currency: "EUR",
+            total: total,
+          },
+          description: "A purchase from Azzi Pizza",
         },
-        "amount": {
-          "currency": "EUR",
-          "total": total
-        },
-        "description": "A purchase from Azzi Pizza"
-      }]
-    }
+      ],
+    };
 
     // Create PayPal payment
     paypal.payment.create(create_payment_json, (error, payment) => {

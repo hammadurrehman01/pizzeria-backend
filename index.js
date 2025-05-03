@@ -12,7 +12,6 @@ import Order from "./models/OrderModel.js";
 import menuRoutes from "./routes/menuRoutes.js";
 import orderRoutes from "./routes/orderRoutes.js";
 import paymentRoutes from "./routes/paymentRoutes.js";
-import axios from "axios";
 
 connectDB();
 
@@ -58,6 +57,8 @@ export const sendUpdatedOrders = async () => {
       "items.menuItem",
       "name price category"
     );
+    io.emit("new-order", orders); // 🔥 This triggers auto printing
+
     io.emit("latestOrders", orders);
   } catch (error) {
     console.error("Error fetching orders:", error);

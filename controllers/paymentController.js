@@ -59,9 +59,10 @@ export const payForOrder = async (req, res) => {
     // Create PayPal payment
     paypal.payment.create(create_payment_json, (error, payment) => {
       if (error) {
-        console.error("PayPal Error:", error.response.details);
+        console.error("PayPal Error:", error.response);
+
         return res.status(500).json({
-          message: error.response.details || "Payment creation failed",
+          message: error.response.error || "Payment creation failed",
         });
       }
 

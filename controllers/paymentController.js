@@ -11,24 +11,7 @@ paypal.configure({
 // Create PayPal payment
 export const payForOrder = async (req, res) => {
   try {
-    const { items, deliveryAddress, name, phoneNumber, total } = req.body;
-
-    const newOrder = new Order({
-      items,
-      name,
-      phoneNumber,
-      totalPrice: total,
-      deliveryAddress,
-      phoneNumber,
-    });
-
-    const savedOrder = await newOrder.save();
-    console.log("savedOrder =>", savedOrder);
-
-    // Get order details
-    const order = await Order.findById(savedOrder._id).populate(
-      "items.menuItem items.selectedIngredients"
-    );
+    const { items, total } = req.body;
 
     const create_payment_json = {
       intent: "sale",
@@ -36,8 +19,8 @@ export const payForOrder = async (req, res) => {
         payment_method: "paypal",
       },
       redirect_urls: {
-        return_url: "https://azzipizza.it/order-success",
-        cancel_url: "https://azzipizza.it/payment-cancelled",
+        return_url: `https://azzipizza.it/paypal-success`,
+        cancel_url: `https://azzipizza.it/payment-cancelled`,
       },
       transactions: [
         {
@@ -58,13 +41,11 @@ export const payForOrder = async (req, res) => {
       ],
     };
 
-    // Create PayPal payment
     paypal.payment.create(create_payment_json, (error, payment) => {
       if (error) {
-        console.error("PayPal Error:", error.response);
-
+        console.error("PayPal Error:", error.response?.details || error);
         return res.status(500).json({
-          message: error.response.error || "Payment creation failed",
+          message: "Payment creation failed",
         });
       }
 
@@ -86,49 +67,68 @@ export const payForOrder = async (req, res) => {
 
 export const handleSuccess = async (req, res) => {
   try {
-    const { paymentId, PayerID } = req.query;
+    const {
+      paymentId,
+      PayerID,
+      items,
+      deliveryAddress,
+      name,
+      phoneNumber,
+      total,
+    } = req.body;
 
     if (!paymentId || !PayerID) {
       return res.status(400).json({ message: "Missing payment details" });
     }
 
-    // Execute payment
+    const execute_payment_json = {
+      payer_id: PayerID,
+      transactions: [
+        {
+          amount: {
+            currency: "EUR",
+            total: total,
+          },
+        },
+      ],
+    };
+
     paypal.payment.execute(
       paymentId,
-      { payer_id: PayerID },
+      execute_payment_json,
       async (error, payment) => {
         if (error) {
-          console.error("Error executing payment:", error);
-          return res.status(400).json({ error: error.response });
-        } else {
-          await Order.updateOne(
-            { _id: req.body.orderId },
-            {
-              paymentStatus: "Completed",
-              orderStatus: "Pending",
-            },
-            (err, result) => {
-              if (err) {
-                console.error("Error updating order:", err);
-                return res.status(500).json({ error: err.message });
-              }
-              console.log("Order updated successfully:", result);
-            }
-          );
-          console.log("Payment executed successfully:", payment);
-
-          console.error("Payment Execution Error:", error);
-          res.redirect(`${process.env.CLIENT_URL}/order-success`);
+          console.error("Error executing payment:", error.response || error);
+          return res.status(400).json({ error: "Payment execution failed" });
         }
+
+        // Save order to DB
+        const newOrder = new Order({
+          items,
+          name,
+          phoneNumber,
+          totalPrice: total,
+          deliveryAddress,
+          paymentStatus: "Completed",
+          orderStatus: "Pending",
+        });
+
+        const savedOrder = await newOrder.save();
+
+        console.log("Order saved successfully:", savedOrder);
+        res.status(200).json({
+          message: "Payment successful and order saved",
+          order: savedOrder,
+        });
       }
     );
   } catch (error) {
     console.error("Payment Success Error:", error);
-    res.redirect(`${process.env.CLIENT_URL}/payment-error`);
+    res.status(500).json({ message: "Internal server error" });
   }
 };
 
 // Handle cancelled payment
 export const handleCancel = (req, res) => {
-  res.redirect(`${process.env.CLIENT_URL}/payment-cancelled`);
+  res.redirect(`https://azzipizza.it/payment-cancelled`);
 };

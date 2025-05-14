@@ -9,7 +9,7 @@ import {
 
 router.post("/pay-for-order", payForOrder);
 
-router.get("/success", handleSuccess);
+router.post("/success", handleSuccess);
 
 router.get("/cancel", handleCancel);
 

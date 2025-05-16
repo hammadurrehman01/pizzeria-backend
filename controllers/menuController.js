@@ -1,7 +1,6 @@
 import Menu from "../models/MenuModel.js";
 import cloudinary from "../utils/cloudinary.js";
 import mongoose from "mongoose";
-import { body, validationResult } from "express-validator";
 
 // Get all menu items
 export const getAllMenuItems = async (req, res) => {
@@ -18,7 +17,6 @@ export const getAllMenuItems = async (req, res) => {
 export const getMenuItemById = async (req, res) => {
   const { id } = req.params;
 
-  // Check if the provided ID is a valid MongoDB ObjectId
   if (!mongoose.Types.ObjectId.isValid(id)) {
     return res.status(400).json({ message: "Invalid menu item ID format" });
   }
@@ -40,7 +38,7 @@ export const getMenuItemById = async (req, res) => {
 // Create a new menu item
 export const createMenuItem = async (req, res) => {
   try {
-    const { name, description, price, category } = req.body;
+    const { name, description, price, category, discount } = req.body;
     const image = req?.file?.path;
 
     // Validate required fields
@@ -64,11 +62,18 @@ export const createMenuItem = async (req, res) => {
       }
     }
 
+    // Parse and validate discount (optional)
+    const parsedDiscount = discount ? parseFloat(discount) : 0;
+    if (parsedDiscount < 0) {
+      return res.status(400).json({ message: "Discount cannot be negative" });
+    }
+
     // Create the menu item object
     const menuObject = {
       name,
       description,
-      price,
+      price: parseFloat(price),
+      discount: parsedDiscount,
       category,
       ingredients: parsedIngredients,
       image: uploadedImage?.secure_url || "",
@@ -86,6 +91,7 @@ export const createMenuItem = async (req, res) => {
       .json({ message: "Error creating menu item", error: error.message });
   }
 };
+
 export const updateMenuItem = async (req, res) => {
   const { id } = req.params;
   console.log("Update request received:", {
@@ -133,11 +139,17 @@ export const updateMenuItem = async (req, res) => {
       }
     }
 
-    // Prepare update data
     const updateData = {
       name: req.body.name || menuItem.name,
       description: req.body.description || menuItem.description,
-      price: req.body.price || menuItem.price,
+      price:
+        req.body.price !== undefined
+          ? parseFloat(req.body.price)
+          : menuItem.price,
+      discount:
+        req.body.discount !== undefined
+          ? parseFloat(req.body.discount)
+          : menuItem.discount,
       category: req.body.category || menuItem.category,
       ingredients: ingredients,
       available:
@@ -146,7 +158,6 @@ export const updateMenuItem = async (req, res) => {
           : menuItem.available,
       image: imageUrl,
     };
-
     // Update the menu item
     const updatedMenuItem = await Menu.findByIdAndUpdate(id, updateData, {
       new: true,

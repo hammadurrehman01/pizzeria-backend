@@ -21,6 +21,11 @@ const menuSchema = new mongoose.Schema(
       required: [true, "Price is required"],
       min: [0.01, "Price must be greater than 0"],
     },
+    discount: {
+      type: Number,
+      required: [true, "Discount Price is required"],
+      min: [0.01, "Price must be greater than 0"],
+    },
     category: {
       type: String,
       enum: [

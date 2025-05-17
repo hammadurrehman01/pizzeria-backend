@@ -9,7 +9,18 @@ const orderSchema = new mongoose.Schema(
           ref: "Menu",
           required: [true, "Item is required"],
         },
-        selectedIngredients: [],
+        name: String,
+        price: {
+          type: Number,
+          required: [true, "Item price is required"],
+        },
+        originalPrice: Number,
+        selectedIngredients: [
+          {
+            name: String,
+            price: Number,
+          },
+        ],
         quantity: {
           type: Number,
           required: true,

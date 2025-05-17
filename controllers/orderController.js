@@ -9,7 +9,6 @@ export const createOrder = async (req, res) => {
       req.body;
     console.log("req.body =>", req.body);
 
-    // Validate items
     if (!items?.length) {
       return res
         .status(400)
@@ -21,14 +20,13 @@ export const createOrder = async (req, res) => {
     for (const item of items) {
       const { menuItem: menuItemId, quantity, selectedIngredients = [] } = item;
 
-      // Validate item
       if (!menuItemId || !quantity) {
         return res.status(400).json({
           message: "Each item must have a menuItem and quantity.",
         });
       }
 
-      // Get menu item with populated ingredients
+      // Get menu item with ingredients
       const menuItem = await Menu.findById(menuItemId).populate("ingredients");
       if (!menuItem) {
         return res.status(404).json({
@@ -42,7 +40,7 @@ export const createOrder = async (req, res) => {
         });
       }
 
-      // Match ingredients by string ID comparison
+      // Validate and store selected ingredients
       const matchedIngredients = selectedIngredients.map((ing) => {
         if (!ing._id || !ing.name || typeof ing.price !== "number") {
           throw new Error(
@@ -56,16 +54,28 @@ export const createOrder = async (req, res) => {
         };
       });
 
+      // Final item price = basePrice - discount + selectedIngredients total
+      const basePrice = menuItem.price;
+      const discountAmount =
+        menuItem.discount && menuItem.discount > 0
+          ? (menuItem.price * menuItem.discount) / 100
+          : 0;
+      const discountedPrice = parseFloat(
+        (basePrice - discountAmount).toFixed(2)
+      );
+
       // Build order item
       orderItems.push({
         menuItem: menuItemId,
+        name: menuItem.name,
+        price: discountedPrice,
+        originalPrice: basePrice,
         quantity,
         selectedIngredients: matchedIngredients,
         customizations: customizations || "",
       });
     }
 
-    // Validate delivery address
     if (!deliveryAddress?.street || !deliveryAddress?.city) {
       return res.status(400).json({
         message: "Valid street and city in delivery address are required.",

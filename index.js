@@ -47,7 +47,7 @@ app.use(errorMiddleware);
 
 const io = new Server(server, {
   cors: {
-    origin: corsOptions,
+    origin: "*",
   },
 });
 

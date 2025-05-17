@@ -163,6 +163,7 @@ export const updateMenuItem = async (req, res) => {
 
     const updatedMenuItem = await Menu.findByIdAndUpdate(id, updateData, {
       new: true,
+      omitUndefined: true,
     });
 
     if (!updatedMenuItem) {

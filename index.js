@@ -47,7 +47,7 @@ app.use(errorMiddleware);
 
 const io = new Server(server, {
   cors: {
-    origin: "*",
+    origin: corsOptions,
   },
 });
 
@@ -57,7 +57,6 @@ export const sendUpdatedOrders = async () => {
       "items.menuItem",
       "name price category"
     );
-    io.emit("new-order", orders); // 🔥 This triggers auto printing
 
     io.emit("latestOrders", orders);
   } catch (error) {

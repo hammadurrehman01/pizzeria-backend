@@ -62,10 +62,12 @@ export const createMenuItem = async (req, res) => {
       }
     }
 
-    // Parse and validate discount (optional)
-    const parsedDiscount = discount ? parseFloat(discount) : 0;
-    if (parsedDiscount < 0) {
-      return res.status(400).json({ message: "Discount cannot be negative" });
+    let parsedDiscount = undefined;
+    if (discount !== undefined && discount !== "") {
+      parsedDiscount = parseFloat(discount);
+      if (parsedDiscount < 0) {
+        return res.status(400).json({ message: "Discount cannot be negative" });
+      }
     }
 
     // Create the menu item object
@@ -73,12 +75,13 @@ export const createMenuItem = async (req, res) => {
       name,
       description,
       price: parseFloat(price),
-      discount: parsedDiscount,
       category,
       ingredients: parsedIngredients,
       image: uploadedImage?.secure_url || "",
     };
-
+    if (parsedDiscount !== undefined) {
+      menuObject.discount = parsedDiscount;
+    }
     // Save to database
     const newMenuItem = new Menu(menuObject);
     const savedMenuItem = await newMenuItem.save();
@@ -100,33 +103,27 @@ export const updateMenuItem = async (req, res) => {
     params: req.params,
   });
 
-  // Validate ID
   if (!mongoose.Types.ObjectId.isValid(id)) {
     return res.status(400).json({ message: "Invalid menu item ID format" });
   }
 
   try {
-    // Find existing menu item
     const menuItem = await Menu.findById(id);
     if (!menuItem) {
       return res.status(404).json({ message: "Menu item not found" });
     }
 
-    // Handle image upload if new image was provided
     let imageUrl = menuItem.image;
     if (req.file) {
-      // Upload new image to Cloudinary
       const uploadedImage = await cloudinary.uploader.upload(req.file.path);
       imageUrl = uploadedImage.secure_url;
 
-      // Delete old image from Cloudinary
       if (menuItem.image) {
         const publicId = menuItem.image.split("/").pop().split(".")[0];
         await cloudinary.uploader.destroy(publicId);
       }
     }
 
-    // Parse ingredients (handle both FormData and JSON)
     let ingredients = menuItem.ingredients;
     if (req.body.ingredients) {
       try {
@@ -146,27 +143,32 @@ export const updateMenuItem = async (req, res) => {
         req.body.price !== undefined
           ? parseFloat(req.body.price)
           : menuItem.price,
-      discount:
-        req.body.discount !== undefined
-          ? parseFloat(req.body.discount)
-          : menuItem.discount,
       category: req.body.category || menuItem.category,
-      ingredients: ingredients,
+      ingredients,
       available:
         req.body.available !== undefined
           ? req.body.available
           : menuItem.available,
       image: imageUrl,
     };
-    // Update the menu item
+
+    // Conditionally include discount
+    if (req.body.discount !== undefined && req.body.discount !== "") {
+      const parsedDiscount = parseFloat(req.body.discount);
+      if (parsedDiscount < 0) {
+        return res.status(400).json({ message: "Discount cannot be negative" });
+      }
+      updateData.discount = parsedDiscount;
+    }
+
     const updatedMenuItem = await Menu.findByIdAndUpdate(id, updateData, {
       new: true,
     });
 
-    console.log(updatedMenuItem);
     if (!updatedMenuItem) {
       return res.status(404).json({ message: "Menu item not found" });
     }
+
     res.status(200).json(updatedMenuItem);
   } catch (error) {
     console.error("Error updating menu item:", error);

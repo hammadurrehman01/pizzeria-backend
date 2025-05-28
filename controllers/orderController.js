@@ -2,11 +2,18 @@ import { sendUpdatedOrders } from "../index.js";
 import Menu from "../models/MenuModel.js";
 import Order from "../models/OrderModel.js";
 
-// Create a new order
 export const createOrder = async (req, res) => {
   try {
-    const { items, deliveryAddress, phoneNumber, name, total, customizations } =
-      req.body;
+    const {
+      items,
+      deliveryAddress,
+      phoneNumber,
+      name,
+      total,
+      customizations,
+      paymentMethod = "cash",
+    } = req.body;
+
     console.log("req.body =>", req.body);
 
     if (!items?.length) {
@@ -26,7 +33,6 @@ export const createOrder = async (req, res) => {
         });
       }
 
-      // Get menu item with ingredients
       const menuItem = await Menu.findById(menuItemId).populate("ingredients");
       if (!menuItem) {
         return res.status(404).json({
@@ -40,7 +46,6 @@ export const createOrder = async (req, res) => {
         });
       }
 
-      // Validate and store selected ingredients
       const matchedIngredients = selectedIngredients.map((ing) => {
         if (!ing._id || !ing.name || typeof ing.price !== "number") {
           throw new Error(
@@ -54,7 +59,6 @@ export const createOrder = async (req, res) => {
         };
       });
 
-      // Final item price = basePrice - discount + selectedIngredients total
       const basePrice = menuItem.price;
       const discountAmount =
         menuItem.discount && menuItem.discount > 0
@@ -64,7 +68,6 @@ export const createOrder = async (req, res) => {
         (basePrice - discountAmount).toFixed(2)
       );
 
-      // Build order item
       orderItems.push({
         menuItem: menuItemId,
         name: menuItem.name,
@@ -76,19 +79,27 @@ export const createOrder = async (req, res) => {
       });
     }
 
+    const validMethods = ["cash", "satispay", "scan"];
+
+    if (!validMethods.includes(paymentMethod)) {
+      return res.status(400).json({
+        message: "Invalid payment method selected.",
+      });
+    }
+
     if (!deliveryAddress?.street || !deliveryAddress?.city) {
       return res.status(400).json({
         message: "Valid street and city in delivery address are required.",
       });
     }
 
-    // Create and save order
     const newOrder = new Order({
       items: orderItems,
       name,
       totalPrice: total,
       deliveryAddress,
       phoneNumber,
+      paymentMethod,
     });
 
     const savedOrder = await newOrder.save();
@@ -104,7 +115,6 @@ export const createOrder = async (req, res) => {
   }
 };
 
-// Get all orders with menu item details
 export const getAllOrders = async (req, res) => {
   try {
     const orders = await Order.find().populate(
@@ -117,7 +127,6 @@ export const getAllOrders = async (req, res) => {
   }
 };
 
-// Get a single order by ID
 export const getOrderById = async (req, res) => {
   try {
     const order = await Order.findById(req.params.id).populate(
@@ -132,12 +141,10 @@ export const getOrderById = async (req, res) => {
   }
 };
 
-// Update order status
 export const updateOrderStatus = async (req, res) => {
   try {
     const { orderStatus, eta } = req.body;
 
-    // Prepare the update object (only update `eta` if it's provided)
     const updateData = { orderStatus };
     if (eta) {
       updateData.eta = eta;
@@ -153,7 +160,7 @@ export const updateOrderStatus = async (req, res) => {
       return res.status(404).json({ message: "Order not found" });
     }
 
-    await sendUpdatedOrders(); // Socket.IO emit for real-time updates
+    await sendUpdatedOrders();
     console.log("Order status updated in real-time!");
 
     res.status(200).json({
@@ -165,14 +172,15 @@ export const updateOrderStatus = async (req, res) => {
   }
 };
 
-// Delete an order safely
 export const deleteOrder = async (req, res) => {
   try {
     const deletedOrder = await Order.findByIdAndDelete(req.params.id);
     if (!deletedOrder) {
       return res.status(404).json({ message: "Order not found" });
     }
-    await sendUpdatedOrders(); // Socket.IO emit for real-time updates
+
+    await sendUpdatedOrders();
+
     console.log("Order deleted in real-time!");
     res.status(200).json({ message: "Order deleted successfully" });
   } catch (error) {

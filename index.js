@@ -41,11 +41,11 @@ const corsOptions = {
   optionsSuccessStatus: 200,
 };
 
-app.use(cors());
+app.use(cors(corsOptions));
 app.use(express.json());
 app.use(errorMiddleware);
 
-const io = new Server(server, {
+export const io = new Server(server, {
   cors: {
     origin: "*",
   },
@@ -70,12 +70,12 @@ app.get("/", (req, res) => {
     message: "api is working",
     menuRoutes: "/api/menu",
     orderRoutes: "/api/orders",
-    paymentRoutes: "/api/payments",
+    paymentRoutes: "/api/payment",
   });
 });
 app.use("/api/menu", menuRoutes);
 app.use("/api/orders", orderRoutes);
-app.use("/api/payments", paymentRoutes);
+app.use("/api/payment", paymentRoutes);
 
 const PORT = process.env.PORT || 5001;
 server.listen(PORT, () => console.log(`Server running on port ${PORT}`));

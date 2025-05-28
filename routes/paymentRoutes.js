@@ -1,16 +1,14 @@
-import { Router } from "express";
-
-const router = Router();
+import express from "express";
 import {
+  createCheckout,
   handleCancel,
-  handleSuccess,
-  payForOrder,
+  satispayWebhook,
 } from "../controllers/paymentController.js";
 
-router.post("/pay-for-order", payForOrder);
+const router = express.Router();
 
-router.post("/success", handleSuccess);
-
+router.post("/create-checkout", createCheckout);
+router.post("/satispay-webhook", express.json(), satispayWebhook);
 router.get("/cancel", handleCancel);
 
 export default router;

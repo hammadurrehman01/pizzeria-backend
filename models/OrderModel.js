@@ -34,9 +34,18 @@ const orderSchema = new mongoose.Schema(
       type: Number,
       required: [true, "Total price is required"],
     },
+
+    paymentId: { type: String, unique: true, sparse: true },
+
+    paymentMethod: {
+      type: String,
+      enum: ["cash", "satispay", "scan"],
+      default: "cash",
+      required: true,
+    },
     paymentStatus: {
       type: String,
-      enum: ["Pending", "Completed", "Failed"],
+      enum: ["Pending", "Completed"],
       default: "Pending",
     },
     orderStatus: {

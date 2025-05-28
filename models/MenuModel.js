@@ -53,7 +53,6 @@ const menuSchema = new mongoose.Schema(
   { timestamps: true }
 );
 
-// Convert name to lowercase and trim it before saving
 menuSchema.pre("save", function (next) {
   if (this.name) this.name = this.name.trim().toLowerCase();
   next();

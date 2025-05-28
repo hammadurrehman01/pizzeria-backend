@@ -11,7 +11,7 @@ export const createOrder = async (req, res) => {
       name,
       total,
       customizations,
-      paymentMethod = "cash",
+      paymentMethod,
     } = req.body;
 
     console.log("req.body =>", req.body);

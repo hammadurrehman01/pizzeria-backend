@@ -18,8 +18,6 @@ connectDB();
 // middleware
 const app = express();
 const server = createServer(app);
-
-app.use(express());
 app.use(express.urlencoded({ extended: true }));
 
 const allowedOrigins = [
@@ -32,12 +30,14 @@ const allowedOrigins = [
 
 const corsOptions = {
   origin: (origin, callback) => {
+    console.log("Incoming request origin:", origin);
     if (!origin || allowedOrigins.includes(origin)) {
       callback(null, true);
     } else {
       callback(new Error("Not allowed by CORS"));
     }
   },
+
   optionsSuccessStatus: 200,
 };
 
@@ -47,7 +47,7 @@ app.use(errorMiddleware);
 
 export const io = new Server(server, {
   cors: {
-    origin: "*",
+    origin: corsOptions,
   },
 });
 

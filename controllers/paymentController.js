@@ -27,6 +27,7 @@ export const createCheckout = async (req, res) => {
     };
 
     const data = await satispayRequest("/payment_requests", "POST", body);
+    console.log("Satispay response:", data);
 
     if (data.status === "CREATED" && data.checkout_url) {
       res.json({ checkout_url: data.checkout_url });

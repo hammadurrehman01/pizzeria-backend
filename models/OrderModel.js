@@ -30,6 +30,7 @@ const orderSchema = new mongoose.Schema(
         customizations: String,
       },
     ],
+    description: String,
     totalPrice: {
       type: Number,
       required: [true, "Total price is required"],

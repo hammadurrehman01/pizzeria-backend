@@ -5,7 +5,7 @@ export const createCheckout = async (req, res) => {
   try {
     const {
       total,
-      description = "Order Payment",
+      description = "Order Payment for Azzipizza",
       items,
       name,
       phoneNumber,
@@ -62,6 +62,7 @@ export const satispayWebhook = async (req, res) => {
       items: metadata.items,
       name: metadata.name,
       phoneNumber: metadata.phoneNumber,
+      description,
       totalPrice: data.amount_unit / 100,
       deliveryAddress: metadata.deliveryAddress,
       paymentStatus: "Completed",
@@ -70,7 +71,7 @@ export const satispayWebhook = async (req, res) => {
     });
 
     const savedOrder = await newOrder.save();
-    console.log("✅ Order saved from Satispay:", savedOrder);
+    console.log("Order saved from Satispay:", savedOrder);
 
     io.emit("order-paid", {
       name: metadata.name,
@@ -80,7 +81,7 @@ export const satispayWebhook = async (req, res) => {
 
     res.status(200).send("Order saved");
   } catch (err) {
-    console.error("❌ Satispay webhook error:", err);
+    console.error("Satispay webhook error:", err);
     res.status(500).send("Error processing Satispay webhook");
   }
 };

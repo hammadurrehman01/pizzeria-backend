@@ -41,7 +41,6 @@ const orderSchema = new mongoose.Schema(
     paymentMethod: {
       type: String,
       enum: ["cash", "satispay", "scan"],
-      default: "cash",
       required: true,
     },
     paymentStatus: {

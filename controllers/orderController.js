@@ -101,8 +101,12 @@ export const createOrder = async (req, res) => {
       phoneNumber,
       paymentMethod,
     });
+    if (paymentMethod === "scan") {
+      newOrder.paymentStatus = "Completed";
+    }
 
     const savedOrder = await newOrder.save();
+    console.log(savedOrder);
     await sendUpdatedOrders();
 
     res.status(201).json(savedOrder);

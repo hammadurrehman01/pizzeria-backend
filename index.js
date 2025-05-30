@@ -41,13 +41,13 @@ const corsOptions = {
   optionsSuccessStatus: 200,
 };
 
-app.use(cors(corsOptions));
+app.use(cors());
 app.use(express.json());
 app.use(errorMiddleware);
 
 export const io = new Server(server, {
   cors: {
-    origin: corsOptions,
+    origin: "*",
   },
 });
 

@@ -3,22 +3,19 @@ import dotenv from "dotenv";
 import express from "express";
 import { createServer } from "http";
 import connectDB from "./config/DBconnect.js";
-dotenv.config();
-
-// Import routes
 import { Server } from "socket.io";
+
 import errorMiddleware from "./middleware/errorMiddleware.js";
 import Order from "./models/OrderModel.js";
 import menuRoutes from "./routes/menuRoutes.js";
 import orderRoutes from "./routes/orderRoutes.js";
 import paymentRoutes from "./routes/paymentRoutes.js";
 
+dotenv.config();
 connectDB();
 
-// middleware
 const app = express();
 const server = createServer(app);
-app.use(express.urlencoded({ extended: true }));
 
 const allowedOrigins = [
   "http://localhost:5173",
@@ -28,34 +25,23 @@ const allowedOrigins = [
   "https://azzipizza.it",
 ];
 
-app.use((req, res, next) => {
-  console.log("received:", req.method, req.url, "Origin:", req.headers.origin);
-  next();
-});
 const corsOptions = {
-  origin: (origin, callback) => {
-    console.log("Incoming request origin:", origin);
-    if (!origin || allowedOrigins.includes(origin)) {
-      callback(null, true);
-    } else {
-      callback(new Error("Not allowed by CORS"));
-    }
-  },
-
-  optionsSuccessStatus: 200,
+  origin: allowedOrigins,
+  methods: ["GET", "POST", "PUT", "DELETE"],
+  credentials: true,
 };
 
-app.use(cors());
-app.options("*", cors(corsOptions));
+app.use(cors(corsOptions));
 app.use(express.json());
-app.use(errorMiddleware);
+app.use(express.urlencoded({ extended: true }));
+
+app.use((req, res, next) => {
+  console.log("🔥 Request from:", req.headers.origin, req.method, req.url);
+  next();
+});
 
 export const io = new Server(server, {
-  cors: {
-    origin: allowedOrigins,
-    methods: ["GET", "POST", "PUT"],
-    credentials: true,
-  },
+  cors: corsOptions,
 });
 
 export const sendUpdatedOrders = async () => {
@@ -64,14 +50,12 @@ export const sendUpdatedOrders = async () => {
       "items.menuItem",
       "name price category"
     );
-
     io.emit("latestOrders", orders);
   } catch (error) {
     console.error("Error fetching orders:", error);
   }
 };
 
-// Use routes
 app.get("/", (req, res) => {
   res.status(200).json({
     message: "api is working",
@@ -80,9 +64,12 @@ app.get("/", (req, res) => {
     paymentRoutes: "/api/payment",
   });
 });
+
 app.use("/api/menu", menuRoutes);
 app.use("/api/orders", orderRoutes);
 app.use("/api/payment", paymentRoutes);
+
+app.use(errorMiddleware);
 
 const PORT = process.env.PORT || 5001;
 server.listen(PORT, () => console.log(`Server running on port ${PORT}`));

@@ -20,34 +20,41 @@ const app = express();
 const server = createServer(app);
 app.use(express.urlencoded({ extended: true }));
 
-// const allowedOrigins = [
-//   "http://localhost:5173",
-//   "http://localhost:5174",
-//   "https://azzipizza-customer.vercel.app",
-//   "https://azzi-pizza-admin-panel.vercel.app",
-//   "https://azzipizza.it",
-// ];
+const allowedOrigins = [
+  "http://localhost:5173",
+  "http://localhost:5174",
+  "https://azzipizza-customer.vercel.app",
+  "https://azzi-pizza-admin-panel.vercel.app",
+  "https://azzipizza.it",
+];
 
-// const corsOptions = {
-//   origin: (origin, callback) => {
-//     console.log("Incoming request origin:", origin);
-//     if (!origin || allowedOrigins.includes(origin)) {
-//       callback(null, true);
-//     } else {
-//       callback(new Error("Not allowed by CORS"));
-//     }
-//   },
+app.use((req, res, next) => {
+  console.log("received:", req.method, req.url, "Origin:", req.headers.origin);
+  next();
+});
+const corsOptions = {
+  origin: (origin, callback) => {
+    console.log("Incoming request origin:", origin);
+    if (!origin || allowedOrigins.includes(origin)) {
+      callback(null, true);
+    } else {
+      callback(new Error("Not allowed by CORS"));
+    }
+  },
 
-//   optionsSuccessStatus: 200,
-// };
+  optionsSuccessStatus: 200,
+};
 
 app.use(cors());
+app.options("*", cors(corsOptions));
 app.use(express.json());
 app.use(errorMiddleware);
 
 export const io = new Server(server, {
   cors: {
-    origin: "*",
+    origin: allowedOrigins,
+    methods: ["GET", "POST", "PUT"],
+    credentials: true,
   },
 });
 

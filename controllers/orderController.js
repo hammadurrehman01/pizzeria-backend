@@ -79,7 +79,7 @@ export const createOrder = async (req, res) => {
       });
     }
 
-    const validMethods = ["cash", "satispay", "scan"];
+    const validMethods = ["cash", "satispay", "scan", "bancomat"];
 
     if (!validMethods.includes(paymentMethod)) {
       return res.status(400).json({

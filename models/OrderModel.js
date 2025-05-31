@@ -40,7 +40,7 @@ const orderSchema = new mongoose.Schema(
 
     paymentMethod: {
       type: String,
-      enum: ["cash", "satispay", "scan"],
+      enum: ["cash", "satispay", "scan", "bancomat"],
       required: true,
     },
     paymentStatus: {
